@@ -19,13 +19,20 @@ $(document).on('change', ':file', function(){
     let img = new Image();
     img.onload = function() {
       console.log("img load complete")
-      if(img.width > 4096 || img.height > 4096) {
+      let max = 4096
+      if(img.width > max || img.height > max) {
         let imageCanvas = $('<canvas id="image" width=0 height=0></canvas>')
         $('body').append(imageCanvas);
         // let imageCanvas = $("#image");
         let ctx = imageCanvas[0].getContext('2d');
-        let cnvsH = 4096;
+        let cnvsH = max;
         let cnvsW = img.naturalWidth*cnvsH/img.naturalHeight;
+        if(img.naturalWidth*cnvsH/img.naturalHeight > 1.0) {
+          cnvsW = max
+          cnvsH = img.naturalHeight * cnvsW/img.naturalWidth;
+            
+        }
+        
         imageCanvas.attr('width', cnvsW);
         imageCanvas.attr('height', cnvsH);
         ctx.drawImage(img, 0, 0, cnvsW, cnvsH);
@@ -38,6 +45,7 @@ $(document).on('change', ':file', function(){
     }
     image.onload = function(){
       console.log("image load complete")
+      console.log("w:" + image.width + " h:" + image.height)
       render();
     }
     img.src = evt.target.result;
@@ -45,6 +53,12 @@ $(document).on('change', ':file', function(){
   fr.readAsDataURL(file);
 })
 
+$("#save").on("click",function(e){
+  let canvas = document.getElementById('canvas');
+  let imgsrc = canvas.toDataURL('image/png');
+  $('#result').append('<img src="' + imgsrc + '">')
+
+})
 
 let render = function(){
   
@@ -55,7 +69,7 @@ let render = function(){
   
   
   // webglコンテキストを取得
-  let gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+  let gl = c.getContext('webgl',{preserveDrawingBuffer: true}) || c.getContext('experimental-webgl',{preserveDrawingBuffer: true});
   
   // エレメントへの参照を取得
   let sobelFlag = document.getElementById('sobel');
