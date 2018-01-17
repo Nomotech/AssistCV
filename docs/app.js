@@ -2,7 +2,7 @@ let image = new Image();;
 
 $(".check").change(function(){
   console.log("checkbox")
-  render(image)
+  render()
 })
 
 $(document).on('change', ':file', function(){
@@ -16,12 +16,29 @@ $(document).on('change', ':file', function(){
 
   fr.onload = function(evt) {
     console.log(evt)
-   image.onload = function() {
-     canvas.width = image.width;
-     canvas.height = image.height;
-     render();
-   }
-   image.src = evt.target.result;
+    image.onload = function() {
+      if(image.width > 4096 || image.height > 4096) {
+        let imageCanvas = $('<canvas id="image" width=0 height=0></canvas>')
+        $('body').append(imageCanvas);
+        // let imageCanvas = $("#image");
+        let ctx = imageCanvas[0].getContext('2d');
+        let cnvsH = 4096;
+        let cnvsW = image.naturalWidth*cnvsH/image.naturalHeight;
+        imageCanvas.attr('width', cnvsW);
+        imageCanvas.attr('height', cnvsH);
+        ctx.drawImage(image, 0, 0, cnvsW, cnvsH);
+        
+        image.src = imageCanvas[0].toDataURL("image/png");
+        imageCanvas.remove();
+        
+        image.onload = function(){
+          render();
+        }
+      } else {
+        render();
+      }
+    }
+    image.src = evt.target.result;
   }
   fr.readAsDataURL(file);
 })
