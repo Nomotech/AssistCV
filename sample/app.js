@@ -1,4 +1,4 @@
-let image = new Image();;
+let image = new Image();
 
 $(".check").change(function(){
   console.log("checkbox")
@@ -16,29 +16,31 @@ $(document).on('change', ':file', function(){
 
   fr.onload = function(evt) {
     console.log(evt)
-    image.onload = function() {
-      if(image.width > 4096 || image.height > 4096) {
+    let img = new Image();
+    img.onload = function() {
+      console.log("img load complete")
+      if(img.width > 4096 || img.height > 4096) {
         let imageCanvas = $('<canvas id="image" width=0 height=0></canvas>')
         $('body').append(imageCanvas);
         // let imageCanvas = $("#image");
         let ctx = imageCanvas[0].getContext('2d');
         let cnvsH = 4096;
-        let cnvsW = image.naturalWidth*cnvsH/image.naturalHeight;
+        let cnvsW = img.naturalWidth*cnvsH/img.naturalHeight;
         imageCanvas.attr('width', cnvsW);
         imageCanvas.attr('height', cnvsH);
-        ctx.drawImage(image, 0, 0, cnvsW, cnvsH);
+        ctx.drawImage(img, 0, 0, cnvsW, cnvsH);
         
         image.src = imageCanvas[0].toDataURL("image/png");
-        imageCanvas.remove();
-        
-        image.onload = function(){
-          render();
-        }
+        imageCanvas.remove();       
       } else {
-        render();
+        image.src = evt.target.result;
       }
     }
-    image.src = evt.target.result;
+    image.onload = function(){
+      console.log("image load complete")
+      render();
+    }
+    img.src = evt.target.result;
   }
   fr.readAsDataURL(file);
 })
