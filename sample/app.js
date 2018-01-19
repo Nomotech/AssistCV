@@ -71,9 +71,6 @@ let render = function(){
   // webglコンテキストを取得
   let gl = c.getContext('webgl',{preserveDrawingBuffer: true}) || c.getContext('experimental-webgl',{preserveDrawingBuffer: true});
   
-  // エレメントへの参照を取得
-  let sobelFlag = document.getElementById('sobel');
-  let grayFlag = document.getElementById('Gray');
 
   // シェーダの準備と各種ロケーションの取得
   let v_shader = create_shader('vs');
@@ -107,11 +104,12 @@ let render = function(){
   let oUniLocation = new Array();
   oUniLocation[0] = gl.getUniformLocation(oPrg, 'mvpMatrix');
   oUniLocation[1] = gl.getUniformLocation(oPrg, 'texture');
-  oUniLocation[2] = gl.getUniformLocation(oPrg, 'sobel');
+  oUniLocation[2] = gl.getUniformLocation(oPrg, 'yakudo');
   oUniLocation[3] = gl.getUniformLocation(oPrg, 'gray');
   oUniLocation[4] = gl.getUniformLocation(oPrg, 'hCoef');
   oUniLocation[5] = gl.getUniformLocation(oPrg, 'vCoef');
   oUniLocation[6] = gl.getUniformLocation(oPrg, 'textureSize');
+  oUniLocation[7] = gl.getUniformLocation(oPrg, 'yakudoStrength');
   
   // テクスチャ
   let tex = gl.createTexture();
@@ -166,23 +164,110 @@ let render = function(){
   // ライトの向き
   let lightDirection = [-0.577, 0.577, 0.577];
   
-  // sobelフィルタのカーネル
-  let hCoef = [
-     1.0,  0.0, -1.0,
-     2.0,  0.0, -2.0,
-     1.0,  0.0, -1.0
-  ];
-  let vCoef = [
-     1.0,  2.0,  1.0,
-     0.0,  0.0,  0.0,
-    -1.0, -2.0, -1.0
-  ];
-  let gaussianBlur = [
-    0.045, 0.122, 0.045,
-    0.122, 0.332, 0.122,
-    0.045, 0.122, 0.045
-  ];
-  
+  // フィルタのカーネル
+  let kernels = {
+    normal: [
+      0, 0, 0,
+      0, 1, 0,
+      0, 0, 0
+    ],
+    gaussianBlur: [
+      0.045, 0.122, 0.045,
+      0.122, 0.332, 0.122,
+      0.045, 0.122, 0.045
+    ],
+    gaussianBlur2: [
+      1, 2, 1,
+      2, 4, 2,
+      1, 2, 1
+    ],
+    gaussianBlur3: [
+      0, 1, 0,
+      1, 1, 1,
+      0, 1, 0
+    ],
+    unsharpen: [
+      -1, -1, -1,
+      -1,  9, -1,
+      -1, -1, -1
+    ],
+    sharpness: [
+       0,-1, 0,
+      -1, 5,-1,
+       0,-1, 0
+    ],
+    sharpen: [
+       -1, -1, -1,
+       -1, 16, -1,
+       -1, -1, -1
+    ],
+    edgeDetect: [
+       -0.125, -0.125, -0.125,
+       -0.125,  1,     -0.125,
+       -0.125, -0.125, -0.125
+    ],
+    edgeDetect2: [
+       -1, -1, -1,
+       -1,  8, -1,
+       -1, -1, -1
+    ],
+    edgeDetect3: [
+       -5, 0, 0,
+        0, 0, 0,
+        0, 0, 5
+    ],
+    edgeDetect4: [
+       -1, -1, -1,
+        0,  0,  0,
+        1,  1,  1
+    ],
+    edgeDetect5: [
+       -1, -1, -1,
+        2,  2,  2,
+       -1, -1, -1
+    ],
+    edgeDetect6: [
+       -5, -5, -5,
+       -5, 39, -5,
+       -5, -5, -5
+    ],
+    sobelH: [
+        1,  2,  1,
+        0,  0,  0,
+       -1, -2, -1
+    ],
+    sobelV: [
+        1,  0, -1,
+        2,  0, -2,
+        1,  0, -1
+    ],
+    previtH: [
+        1,  1,  1,
+        0,  0,  0,
+       -1, -1, -1
+    ],
+    previtV: [
+        1,  0, -1,
+        1,  0, -1,
+        1,  0, -1
+    ],
+    boxBlur: [
+        0.111, 0.111, 0.111,
+        0.111, 0.111, 0.111,
+        0.111, 0.111, 0.111
+    ],
+    triangleBlur: [
+        0.0625, 0.125, 0.0625,
+        0.125,  0.25,  0.125,
+        0.0625, 0.125, 0.0625
+    ],
+    emboss: [
+       -2, -1,  0,
+       -1,  1,  1,
+        0,  1,  2
+    ]
+  };
+
   // フレームバッファオブジェクトの取得
   let fBufferWidth  = c.width;
   let fBufferHeight = c.height;
@@ -218,22 +303,50 @@ let render = function(){
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     
-    // エレメントから色変換するかどうかのフラグを取得
-    // let sobel = ;
-    // let sobelGray = ;
     
+    let hCoef = kernels.normal;
+    let vCoef = kernels.normal;
+    if($("#sobel").prop('checked')) {
+      hCoef = kernels.sobelH;
+      vCoef = kernels.sobelV;
+    }
+    if($("#gaussianBlur").prop('checked')) {
+      hCoef = vCoef = kernels.gaussianBlur;
+    }
+    if($("#unsharpen").prop('checked')) {
+      hCoef = kernels.normal;
+      vCoef = kernels.unsharpen;
+    }
+    if($("#previt").prop('checked')) {
+      hCoef = kernels.previtH
+      vCoef = kernels.previtV
+    }
+    if($("#boxBlur").prop('checked')) {
+      hCoef = vCoef = kernels.boxBlur;
+    }
+    if($("#triangleBlur").prop('checked')) {
+      hCoef = vCoef = kernels.triangleBlur;
+    }
+    if($("#emboss").prop('checked')) {
+      hCoef = vCoef = kernels.emboss;
+    }
+
+
+
     // 板ポリゴンのレンダリング
     set_attribute(vVBOList, oAttLocation, oAttStride);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, vIndex);
     gl.uniformMatrix4fv(oUniLocation[0], false, tmpMatrix);
     gl.uniform1i(oUniLocation[1], 0);
-    gl.uniform1i(oUniLocation[2], sobelFlag.checked);
-    gl.uniform1i(oUniLocation[3], grayFlag.checked);
+    gl.uniform1i(oUniLocation[2], $("#yakudo").prop('checked'));
+    gl.uniform1i(oUniLocation[3], $("#gray").prop('checked'));
     gl.uniform1fv(oUniLocation[4], hCoef);
     gl.uniform1fv(oUniLocation[5], vCoef);
     gl.uniform2f(oUniLocation[6], c.width,c.height);
+    gl.uniform1f(oUniLocation[7], Number($("#yakudoStrength").val()));
     gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT, 0);
-    
+  
+
     // コンテキストの再描画
     gl.flush();
     

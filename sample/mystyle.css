@@ -9,8 +9,11 @@ canvas {
 	padding-right: 0px;
 	padding-left: 0px;
 	margin: 10px;
-	border-style: solid;
+	border-style: none;
 	border-width: 1px;
 	max-width: 100%;
 }
 
+.checkbox {
+	margin: 10px; 
+}

@@ -28,9 +28,9 @@
         vColor         = amb * vec4(vec3(diffuse), 1.0) + vec4(vec3(specular), 1.0);
         gl_Position    = mvpMatrix * vec4(position, 1.0);
       }
-          </script>
+    </script>
           
-          <script id="fs" type="x-shader/x-fragment">
+    <script id="fs" type="x-shader/x-fragment">
       precision mediump float;
 
       varying vec4 vColor;
@@ -38,9 +38,9 @@
       void main(void){
         gl_FragColor = vColor;
       }
-          </script>
+    </script>
           
-          <script id="ovs" type="x-shader/x-vertex">
+    <script id="ovs" type="x-shader/x-vertex">
       attribute vec3 position;
       attribute vec2 texCoord;
       uniform   mat4 mvpMatrix;
@@ -56,11 +56,12 @@
       precision mediump float;
 
       uniform sampler2D texture;
-      uniform bool      sobel;
+      uniform bool      yakudo;
       uniform bool      gray;
       uniform float     hCoef[9];
       uniform float     vCoef[9];
-      uniform vec2 textureSize; // w , h
+      uniform float     yakudoStrength;
+      uniform vec2      textureSize; // w , h
       varying vec2      vTexCoord;
 
       const float redScale   = 0.298912;
@@ -105,15 +106,28 @@
         verticalColor += texture2D(texture, (fc + offset[7]) * onePixel).rgb * vCoef[7];
         verticalColor += texture2D(texture, (fc + offset[8]) * onePixel).rgb * vCoef[8];
         
-        if(sobel){
-          destColor = vec4(vec3(sqrt(horizonColor * horizonColor + verticalColor * verticalColor)), 1.0);
-        }else{
-          destColor = texture2D(texture, vTexCoord);
-        }
+        destColor = texture2D(texture, vTexCoord);
+        destColor = vec4(vec3(sqrt(horizonColor * horizonColor + verticalColor * verticalColor)), 1.0);
         if(gray){
           float grayColor = dot(destColor.rgb, monochromeScale);
           destColor = vec4(vec3(grayColor), 1.0);
         }
+        if(yakudo) {
+          float tFrag = 1.0 / textureSize.x;
+          float nFrag = 1.0 / 30.0;
+          vec2  fcc = fc - textureSize/2.0;
+          float totalWeight = 0.0;
+          for(float i = 0.0; i <= 30.0; i++){
+            float percent = i * nFrag;
+            float weight = percent - percent * percent;
+            vec2 t = fc - fcc * percent * yakudoStrength * nFrag;
+            destColor += texture2D(texture, t / textureSize).rgba * weight;
+            totalWeight += weight;
+          }
+          destColor = vec4(destColor / totalWeight);
+          destColor.a = 1.0;
+        }
+
         gl_FragColor = destColor;
       }
     </script>
@@ -128,8 +142,17 @@
         <input type="text" class="form-control" readonly="">
       </div>
       <canvas id="canvas" width="0" height="0" ></canvas>
-      <div class="checkbox"><label><input class="check" type="checkbox" value="" id="Gray">Gray</label></div>
-      <div class="checkbox"><label><input class="check"type="checkbox" value="" id="sobel">Sobel</label></div>
+      <div class="checkbox"><label><input class="check" type="checkbox" value="" id="gray">Gray</label></div>
+      <div class="checkbox"><label><input class="check" type="checkbox" value="" id="sobel">Sobel</label></div>
+      <div class="checkbox"><label><input class="check" type="checkbox" value="" id="gaussianBlur">GaussianBlur</label></div>
+      <div class="checkbox"><label><input class="check" type="checkbox" value="" id="unsharpen">unsharpen</label></div>
+      <div class="checkbox"><label><input class="check" type="checkbox" value="" id="previt">previt</label></div>
+      <div class="checkbox"><label><input class="check" type="checkbox" value="" id="boxBlur">boxBlur</label></div>
+      <div class="checkbox"><label><input class="check" type="checkbox" value="" id="triangleBlur">triangleBlur</label></div>
+      <div class="checkbox"><label><input class="check" type="checkbox" value="" id="emboss">emboss</label></div>
+      <div class="checkbox"><label><input class="check" type="checkbox" value="" id="yakudo">yakudo</label> <input type="range" min="0" max="15" class="check" id="yakudoStrength" style="width:150px"></div>
+
+
       <button type="button" id="save" class="btn btn-primary">Export png</button>
     </div>
     <div id = "result"></div>
